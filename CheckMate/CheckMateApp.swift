@@ -12,20 +12,39 @@ import SwiftData
 struct CheckMateApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Receipt.self,
+            LineItem.self,
+            Person.self,
+            Split.self,
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(for: schema, configurations: [config])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            // Schema changed (e.g. relationship migration) — reset the local store.
+            // Safe during development; no production data is lost.
+            print("⚠️ ModelContainer error: \(error)\nResetting store…")
+            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory,
+                                                      in: .userDomainMask).first!
+            let storeFiles = (try? FileManager.default.contentsOfDirectory(
+                at: appSupport,
+                includingPropertiesForKeys: nil
+            )) ?? []
+            for file in storeFiles where file.lastPathComponent.hasPrefix("default") {
+                try? FileManager.default.removeItem(at: file)
+            }
+            do {
+                return try ModelContainer(for: schema, configurations: [config])
+            } catch {
+                fatalError("Could not create ModelContainer after reset: \(error)")
+            }
         }
     }()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeView()
         }
         .modelContainer(sharedModelContainer)
     }
