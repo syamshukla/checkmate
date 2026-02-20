@@ -24,15 +24,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		22C4D88C2F46883A00EB1F0F /* CheckMate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CheckMate.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		22C4D89B2F46883D00EB1F0F /* CheckMateTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CheckMateTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		22C4D8A52F46883D00EB1F0F /* CheckMateUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CheckMateUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		22C4D88C2F46883A00EB1F0F /* Billd.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Billd.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		22C4D89B2F46883D00EB1F0F /* BilldTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BilldTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		22C4D8A52F46883D00EB1F0F /* BilldUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BilldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		22C4D88E2F46883A00EB1F0F /* CheckMate */ = {
+		22C4D88E2F46883A00EB1F0F /* Billd */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = CheckMate;
+			path = Billd;
 			sourceTree = "<group>";
 		};
 		22C4D89E2F46883D00EB1F0F /* CheckMateTests */ = {
@@ -75,7 +75,7 @@
 		22C4D8832F46883A00EB1F0F = {
 			isa = PBXGroup;
 			children = (
-				22C4D88E2F46883A00EB1F0F /* CheckMate */,
+				22C4D88E2F46883A00EB1F0F /* Billd */,
 				22C4D89E2F46883D00EB1F0F /* CheckMateTests */,
 				22C4D8A82F46883D00EB1F0F /* CheckMateUITests */,
 				22C4D88D2F46883A00EB1F0F /* Products */,
@@ -85,9 +85,9 @@
 		22C4D88D2F46883A00EB1F0F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				22C4D88C2F46883A00EB1F0F /* CheckMate.app */,
-				22C4D89B2F46883D00EB1F0F /* CheckMateTests.xctest */,
-				22C4D8A52F46883D00EB1F0F /* CheckMateUITests.xctest */,
+				22C4D88C2F46883A00EB1F0F /* Billd.app */,
+				22C4D89B2F46883D00EB1F0F /* BilldTests.xctest */,
+				22C4D8A52F46883D00EB1F0F /* BilldUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,9 +95,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		22C4D88B2F46883A00EB1F0F /* CheckMate */ = {
+		22C4D88B2F46883A00EB1F0F /* Billd */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 22C4D8AF2F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "CheckMate" */;
+			buildConfigurationList = 22C4D8AF2F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "Billd" */;
 			buildPhases = (
 				22C4D8882F46883A00EB1F0F /* Sources */,
 				22C4D8892F46883A00EB1F0F /* Frameworks */,
@@ -108,18 +108,18 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				22C4D88E2F46883A00EB1F0F /* CheckMate */,
+				22C4D88E2F46883A00EB1F0F /* Billd */,
 			);
-			name = CheckMate;
+			name = Billd;
 			packageProductDependencies = (
 			);
 			productName = CheckMate;
-			productReference = 22C4D88C2F46883A00EB1F0F /* CheckMate.app */;
+			productReference = 22C4D88C2F46883A00EB1F0F /* Billd.app */;
 			productType = "com.apple.product-type.application";
 		};
-		22C4D89A2F46883D00EB1F0F /* CheckMateTests */ = {
+		22C4D89A2F46883D00EB1F0F /* BilldTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 22C4D8B22F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "CheckMateTests" */;
+			buildConfigurationList = 22C4D8B22F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "BilldTests" */;
 			buildPhases = (
 				22C4D8972F46883D00EB1F0F /* Sources */,
 				22C4D8982F46883D00EB1F0F /* Frameworks */,
@@ -133,16 +133,16 @@
 			fileSystemSynchronizedGroups = (
 				22C4D89E2F46883D00EB1F0F /* CheckMateTests */,
 			);
-			name = CheckMateTests;
+			name = BilldTests;
 			packageProductDependencies = (
 			);
 			productName = CheckMateTests;
-			productReference = 22C4D89B2F46883D00EB1F0F /* CheckMateTests.xctest */;
+			productReference = 22C4D89B2F46883D00EB1F0F /* BilldTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		22C4D8A42F46883D00EB1F0F /* CheckMateUITests */ = {
+		22C4D8A42F46883D00EB1F0F /* BilldUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 22C4D8B52F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "CheckMateUITests" */;
+			buildConfigurationList = 22C4D8B52F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "BilldUITests" */;
 			buildPhases = (
 				22C4D8A12F46883D00EB1F0F /* Sources */,
 				22C4D8A22F46883D00EB1F0F /* Frameworks */,
@@ -156,11 +156,11 @@
 			fileSystemSynchronizedGroups = (
 				22C4D8A82F46883D00EB1F0F /* CheckMateUITests */,
 			);
-			name = CheckMateUITests;
+			name = BilldUITests;
 			packageProductDependencies = (
 			);
 			productName = CheckMateUITests;
-			productReference = 22C4D8A52F46883D00EB1F0F /* CheckMateUITests.xctest */;
+			productReference = 22C4D8A52F46883D00EB1F0F /* BilldUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -171,7 +171,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1640;
-				LastUpgradeCheck = 1640;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					22C4D88B2F46883A00EB1F0F = {
 						CreatedOnToolsVersion = 16.4;
@@ -186,7 +186,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 22C4D8872F46883A00EB1F0F /* Build configuration list for PBXProject "CheckMate" */;
+			buildConfigurationList = 22C4D8872F46883A00EB1F0F /* Build configuration list for PBXProject "Billd" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -200,9 +200,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				22C4D88B2F46883A00EB1F0F /* CheckMate */,
-				22C4D89A2F46883D00EB1F0F /* CheckMateTests */,
-				22C4D8A42F46883D00EB1F0F /* CheckMateUITests */,
+				22C4D88B2F46883A00EB1F0F /* Billd */,
+				22C4D89A2F46883D00EB1F0F /* BilldTests */,
+				22C4D8A42F46883D00EB1F0F /* BilldUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -258,12 +258,12 @@
 /* Begin PBXTargetDependency section */
 		22C4D89D2F46883D00EB1F0F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 22C4D88B2F46883A00EB1F0F /* CheckMate */;
+			target = 22C4D88B2F46883A00EB1F0F /* Billd */;
 			targetProxy = 22C4D89C2F46883D00EB1F0F /* PBXContainerItemProxy */;
 		};
 		22C4D8A72F46883D00EB1F0F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 22C4D88B2F46883A00EB1F0F /* CheckMate */;
+			target = 22C4D88B2F46883A00EB1F0F /* Billd */;
 			targetProxy = 22C4D8A62F46883D00EB1F0F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -327,6 +327,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -383,6 +384,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -394,9 +396,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = J8L6HR8253;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -406,8 +410,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = nueron.tech.CheckMate;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.syamshukla.billd;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -421,9 +425,11 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = J8L6HR8253;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -433,8 +439,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = nueron.tech.CheckMate;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.syamshukla.billd;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -456,7 +462,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CheckMate.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CheckMate";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Billd.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Billd";
 			};
 			name = Debug;
 		};
@@ -474,7 +480,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CheckMate.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CheckMate";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Billd.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Billd";
 			};
 			name = Release;
 		};
@@ -513,7 +519,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		22C4D8872F46883A00EB1F0F /* Build configuration list for PBXProject "CheckMate" */ = {
+		22C4D8872F46883A00EB1F0F /* Build configuration list for PBXProject "Billd" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				22C4D8AD2F46883D00EB1F0F /* Debug */,
@@ -522,7 +528,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		22C4D8AF2F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "CheckMate" */ = {
+		22C4D8AF2F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "Billd" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				22C4D8B02F46883D00EB1F0F /* Debug */,
@@ -531,7 +537,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		22C4D8B22F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "CheckMateTests" */ = {
+		22C4D8B22F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "BilldTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				22C4D8B32F46883D00EB1F0F /* Debug */,
@@ -540,7 +546,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		22C4D8B52F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "CheckMateUITests" */ = {
+		22C4D8B52F46883D00EB1F0F /* Build configuration list for PBXNativeTarget "BilldUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				22C4D8B62F46883D00EB1F0F /* Debug */,

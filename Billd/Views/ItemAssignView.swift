@@ -1,6 +1,6 @@
 //
 //  ItemAssignView.swift
-//  CheckMate
+//  Billd
 //
 //  Screen 1 of 2: Assign items to people and split individual items.
 //

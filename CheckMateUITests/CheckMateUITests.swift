@@ -1,13 +1,13 @@
 //
-//  CheckMateUITests.swift
-//  CheckMateUITests
+//  BilldUITests.swift
+//  BilldUITests
 //
 //  Created by Syam Shukla on 2/18/26.
 //
 
 import XCTest
 
-final class CheckMateUITests: XCTestCase {
+final class BilldUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

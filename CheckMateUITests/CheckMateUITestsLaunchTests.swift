@@ -1,13 +1,13 @@
 //
-//  CheckMateUITestsLaunchTests.swift
-//  CheckMateUITests
+//  BilldUITestsLaunchTests.swift
+//  BilldUITests
 //
 //  Created by Syam Shukla on 2/18/26.
 //
 
 import XCTest
 
-final class CheckMateUITestsLaunchTests: XCTestCase {
+final class BilldUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

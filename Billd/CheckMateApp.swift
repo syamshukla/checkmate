@@ -1,6 +1,6 @@
 //
-//  CheckMateApp.swift
-//  CheckMate
+//  BilldApp.swift
+//  Billd
 //
 //  Created by Syam Shukla on 2/18/26.
 //
@@ -9,7 +9,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct CheckMateApp: App {
+struct BilldApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Receipt.self,

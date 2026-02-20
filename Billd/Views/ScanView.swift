@@ -1,6 +1,6 @@
 //
 //  ScanView.swift
-//  CheckMate
+//  Billd
 //
 //  Created by Syam Shukla on 2/18/26.
 //
@@ -146,7 +146,7 @@ struct ScanView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("CheckMate needs camera access to scan receipts.")
+            Text("Billd needs camera access to scan receipts.")
         }
     }
 
