@@ -14,15 +14,20 @@ final class Person {
     var name: String
     var emoji: String
     var color: String
+    
+    /// Unique identifier stored as string for AppStorage compatibility
+    @Attribute(.unique) var personID: String
 
     init(
         name: String,
         emoji: String = "👤",
-        color: String = Person.colorPalette[0]
+        color: String = Person.colorPalette[0],
+        personID: String = UUID().uuidString
     ) {
         self.name = name
         self.emoji = emoji
         self.color = color
+        self.personID = personID
     }
 
     var swiftUIColor: Color {

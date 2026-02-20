@@ -18,6 +18,10 @@ struct ItemAssignView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    // Current user preference
+    @AppStorage("currentUserID") private var currentUserID: String = ""
+    @Query private var allPeople: [Person]
+    
     // People added to THIS split session
     @State private var splitPeople: [Person] = []
     // The currently "active" person — tapping items assigns to them
@@ -31,6 +35,16 @@ struct ItemAssignView: View {
     @State private var showAddItem = false
     @State private var showCharges = false
     @State private var savedFromCharges = false
+    
+    // Computed: find current user
+    var currentUser: Person? {
+        allPeople.first { $0.personID == currentUserID }
+    }
+    
+    var isCurrentUserInSplit: Bool {
+        guard let currentUser = currentUser else { return false }
+        return splitPeople.contains { $0.persistentModelID == currentUser.persistentModelID }
+    }
 
     // MARK: Computed
 
@@ -50,25 +64,18 @@ struct ItemAssignView: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(spacing: 14) {
-                        // Only show people section if we have people
                         if !splitPeople.isEmpty {
-                            peopleManagementSection
                             evenSplitRow
                         }
                         itemsSection
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
-                    .padding(.bottom, splitPeople.isEmpty ? 140 : 200)
+                    .padding(.bottom, splitPeople.isEmpty ? 150 : 220)
                 }
             }
 
-            // Bottom person selector OR add people button
-            if splitPeople.isEmpty {
-                addPeoplePrompt
-            } else {
-                personSelectorFooter
-            }
+            combinedBottomBar
         }
         .navigationTitle(receipt.restaurantName.isEmpty ? "Assign Items" : receipt.restaurantName)
         .navigationBarTitleDisplayMode(.inline)
@@ -108,131 +115,121 @@ struct ItemAssignView: View {
         .onAppear { restorePeople() }
     }
 
-    // MARK: - People Management Section (top, collapsible)
-    
-    var peopleManagementSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label("PEOPLE", systemImage: "person.2.fill")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.textSecondary)
-                Spacer()
-                Button(action: { showPeoplePicker = true }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus.circle.fill")
-                        Text("Add")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.appAccent)
-                }
-            }
-            
-            // People chips (non-interactive here, just for management)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(splitPeople) { person in
-                        HStack(spacing: 8) {
-                            Text(person.emoji)
-                                .font(.title3)
-                            Text(person.name)
-                                .font(.subheadline)
-                                .foregroundStyle(.white)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Color(hex: person.color).opacity(0.3))
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(Color(hex: person.color), lineWidth: 1)
-                        )
-                        .onLongPressGesture { removePerson(person) }
-                    }
-                }
-            }
-        }
-        .padding(16)
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-    
-    // MARK: - Add People Prompt (when empty)
-    
-    var addPeoplePrompt: some View {
+    // MARK: - Combined Bottom Bar
+
+    /// Single bottom bar that handles both people management and item assignment.
+    /// Replaces the old split between peopleManagementSection (scroll) and personSelectorFooter (overlay).
+    /// Background is fully opaque to prevent content bleed-through.
+    var combinedBottomBar: some View {
         VStack(spacing: 0) {
-            Button(action: { showPeoplePicker = true }) {
-                VStack(spacing: 12) {
-                    Image(systemName: "person.2.badge.plus")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.appAccent)
-                    Text("Add people to start splitting")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                    Text("Tap to select who's on this bill")
-                        .font(.subheadline)
-                        .foregroundStyle(.textSecondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 32)
-                .background(Color.cardBackground)
-            }
-        }
-        .background(.ultraThinMaterial.opacity(0.01))
-        .background(Color.appBackground.opacity(0.98))
-    }
-    
-    // MARK: - Person Selector Footer (bottom bar with people)
-    
-    var personSelectorFooter: some View {
-        VStack(spacing: 0) {
-            // Thin separator line
             Rectangle()
                 .fill(Color.white.opacity(0.1))
                 .frame(height: 1)
-            
-            // Person selector row (minimal)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(splitPeople) { person in
-                        PersonSelectorChip(
-                            person: person,
-                            isActive: activePerson?.persistentModelID == person.persistentModelID,
-                            subtotal: subtotalString(for: person)
-                        )
-                        .onTapGesture { 
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                toggleActive(person)
-                            }
+
+            if splitPeople.isEmpty {
+                // ── Empty state: prompt to add people ──
+                Button(action: { showPeoplePicker = true }) {
+                    VStack(spacing: 12) {
+                        Image(systemName: "person.2.badge.plus")
+                            .font(.system(size: 32))
+                            .foregroundStyle(.appAccent)
+
+                        if currentUser != nil {
+                            Text("You're automatically included!")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                            Text("Add others who shared this bill")
+                                .font(.subheadline)
+                                .foregroundStyle(.textSecondary)
+                        } else {
+                            Text("Add people to start splitting")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                            Text("Tap to select who's on this bill")
+                                .font(.subheadline)
+                                .foregroundStyle(.textSecondary)
                         }
                     }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-            }
-            .background(Color.appBackground.opacity(0.95))
-            
-            // Continue button (compact, slides up when ready)
-            if canProceed {
-                Button(action: { showCharges = true }) {
-                    HStack(spacing: 8) {
-                        Text("Continue")
-                            .fontWeight(.semibold)
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 16, weight: .semibold))
-                    }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Color.appAccent)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .padding(.vertical, 28)
+                }
+            } else {
+                // ── Header: label + Add Me + Add (+) ──
+                HStack(spacing: 8) {
+                    Label("PEOPLE", systemImage: "person.2.fill")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.textSecondary)
+                    Spacer()
+
+                    if let currentUser = currentUser, !isCurrentUserInSplit {
+                        Button(action: { addCurrentUser() }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "person.fill.badge.plus")
+                                Text("Add Me")
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.appAccent)
+                            .clipShape(Capsule())
+                        }
+                    }
+
+                    Button(action: { showPeoplePicker = true }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.appAccent)
+                    }
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(Color.appBackground.opacity(0.95))
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .padding(.top, 12)
+                .padding(.bottom, 4)
+
+                // ── Scrollable person chips (tap to select, long-press to remove) ──
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(splitPeople) { person in
+                            PersonSelectorChip(
+                                person: person,
+                                isActive: activePerson?.persistentModelID == person.persistentModelID,
+                                subtotal: subtotalString(for: person)
+                            )
+                            .onTapGesture {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    toggleActive(person)
+                                }
+                            }
+                            .onLongPressGesture { removePerson(person) }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                }
+
+                // ── Continue button (slides in when all items assigned) ──
+                if canProceed {
+                    Button(action: { showCharges = true }) {
+                        HStack(spacing: 8) {
+                            Text("Continue")
+                                .fontWeight(.semibold)
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.appAccent)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
         }
+        .background(Color.appBackground)  // Fully opaque — no content bleed-through
     }
 
     // MARK: - Even Split Toggle
@@ -415,6 +412,22 @@ struct ItemAssignView: View {
             }
         }
         splitPeople = restored
+        
+        // Auto-add current user if this is a fresh split
+        if splitPeople.isEmpty, let currentUser = currentUser {
+            splitPeople.append(currentUser)
+        }
+    }
+    
+    private func addCurrentUser() {
+        guard let currentUser = currentUser else { return }
+        withAnimation {
+            if !splitPeople.contains(where: { $0.persistentModelID == currentUser.persistentModelID }) {
+                splitPeople.append(currentUser)
+                // Optionally make them the active person
+                activePerson = currentUser
+            }
+        }
     }
 }
 
@@ -776,10 +789,15 @@ struct PeoplePickerView: View {
     @Query(sort: \Person.name) private var allPeople: [Person]
     @State private var searchText = ""
     @State private var showNewPerson = false
+    @AppStorage("currentUserID") private var currentUserID: String = ""
 
     var filtered: [Person] {
         searchText.isEmpty ? allPeople
             : allPeople.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
+    
+    var currentUser: Person? {
+        allPeople.first { $0.personID == currentUserID }
     }
 
     var body: some View {
@@ -818,8 +836,18 @@ struct PeoplePickerView: View {
                                             .overlay(
                                                 Text(person.emoji).font(.system(size: 18))
                                             )
-                                        Text(person.name)
-                                            .foregroundStyle(.white)
+                                        
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(person.name)
+                                                .foregroundStyle(.white)
+                                            
+                                            if currentUser?.persistentModelID == person.persistentModelID {
+                                                Text("Current User")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.appAccent)
+                                            }
+                                        }
+                                        
                                         Spacer()
                                         let included = splitPeople.contains {
                                             $0.persistentModelID == person.persistentModelID
@@ -829,6 +857,16 @@ struct PeoplePickerView: View {
                                             .font(.system(size: 22))
                                     }
                                     .padding(.vertical, 2)
+                                }
+                                .swipeActions(edge: .leading) {
+                                    if currentUser?.persistentModelID != person.persistentModelID {
+                                        Button {
+                                            currentUserID = person.personID
+                                        } label: {
+                                            Label("Set as Me", systemImage: "person.fill.checkmark")
+                                        }
+                                        .tint(.appAccent)
+                                    }
                                 }
                             }
                         }
@@ -874,6 +912,8 @@ struct NewPersonSheet: View {
     @State private var name = ""
     @State private var selectedEmoji = "👤"
     @State private var selectedColor: String = Person.colorPalette[0]
+    @State private var setAsCurrentUser = false
+    @AppStorage("currentUserID") private var currentUserID: String = ""
 
     let emojiOptions = ["👤", "👨", "👩", "🧑", "👦", "👧", "🧔", "👱", "🧒", "🧕"]
 
@@ -961,6 +1001,24 @@ struct NewPersonSheet: View {
                             .padding(.horizontal, 16)
                         }
                     }
+                    
+                    // Set as current user toggle
+                    Toggle(isOn: $setAsCurrentUser) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("This is me")
+                                .foregroundStyle(.white)
+                                .fontWeight(.medium)
+                            Text("Automatically add to new splits")
+                                .font(.caption)
+                                .foregroundStyle(.textSecondary)
+                        }
+                    }
+                    .tint(.appAccent)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 16)
 
                     Spacer()
                 }
@@ -983,14 +1041,26 @@ struct NewPersonSheet: View {
             }
             .onAppear {
                 selectedColor = Person.nextColor(avoiding: splitPeople)
+                // Auto-enable "This is me" if no current user is set
+                setAsCurrentUser = currentUserID.isEmpty
             }
         }
     }
 
     private func save() {
-        let person = Person(name: name.trimmingCharacters(in: .whitespaces), emoji: selectedEmoji, color: selectedColor)
+        let person = Person(
+            name: name.trimmingCharacters(in: .whitespaces),
+            emoji: selectedEmoji,
+            color: selectedColor
+        )
         modelContext.insert(person)
         splitPeople.append(person)
+        
+        // Set as current user if toggle is on
+        if setAsCurrentUser {
+            currentUserID = person.personID
+        }
+        
         dismiss()
     }
 }
