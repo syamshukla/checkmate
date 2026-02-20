@@ -15,6 +15,7 @@ struct HomeView: View {
     @State private var showScanSheet = false
     @State private var selectedReceipt: Receipt?
     @State private var scannedReceipt: Receipt?
+    @State private var showDeleteAllAlert = false
 
     var body: some View {
         NavigationStack {
@@ -32,6 +33,16 @@ struct HomeView: View {
             .toolbarBackground(Color.appBackground, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if !receipts.isEmpty {
+                        Button(action: { showDeleteAllAlert = true }) {
+                            Text("Delete All")
+                                .foregroundStyle(.red)
+                                .fontWeight(.medium)
+                        }
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showScanSheet = true }) {
                         Image(systemName: "plus")
@@ -39,6 +50,16 @@ struct HomeView: View {
                             .foregroundStyle(.appAccent)
                     }
                 }
+            }
+            .alert("Delete All Receipts?", isPresented: $showDeleteAllAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete All", role: .destructive) {
+                    for receipt in receipts {
+                        modelContext.delete(receipt)
+                    }
+                }
+            } message: {
+                Text("This will permanently delete all \(receipts.count) receipt\(receipts.count == 1 ? "" : "s"). This action cannot be undone.")
             }
             .sheet(isPresented: $showScanSheet, onDismiss: {
                 // After sheet closes, if a receipt was just created, navigate to it
@@ -111,6 +132,15 @@ struct HomeView: View {
                 ForEach(receipts) { receipt in
                     ReceiptCard(receipt: receipt)
                         .onTapGesture { selectedReceipt = receipt }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                withAnimation {
+                                    modelContext.delete(receipt)
+                                }
+                            } label: {
+                                Label("Delete", systemImage: "trash.fill")
+                            }
+                        }
                         .contextMenu {
                             Button(role: .destructive) {
                                 modelContext.delete(receipt)

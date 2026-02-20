@@ -50,17 +50,25 @@ struct ItemAssignView: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(spacing: 14) {
-                        peopleSection
-                        evenSplitRow
+                        // Only show people section if we have people
+                        if !splitPeople.isEmpty {
+                            peopleManagementSection
+                            evenSplitRow
+                        }
                         itemsSection
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
-                    .padding(.bottom, 140)
+                    .padding(.bottom, splitPeople.isEmpty ? 140 : 200)
                 }
             }
 
-            footerView
+            // Bottom person selector OR add people button
+            if splitPeople.isEmpty {
+                addPeoplePrompt
+            } else {
+                personSelectorFooter
+            }
         }
         .navigationTitle(receipt.restaurantName.isEmpty ? "Assign Items" : receipt.restaurantName)
         .navigationBarTitleDisplayMode(.inline)
@@ -100,61 +108,131 @@ struct ItemAssignView: View {
         .onAppear { restorePeople() }
     }
 
-    // MARK: - People Section
-
-    var peopleSection: some View {
+    // MARK: - People Management Section (top, collapsible)
+    
+    var peopleManagementSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("WHO'S SPLITTING", systemImage: "person.2.fill")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.textSecondary)
-
+            HStack {
+                Label("PEOPLE", systemImage: "person.2.fill")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.textSecondary)
+                Spacer()
+                Button(action: { showPeoplePicker = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                        Text("Add")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.appAccent)
+                }
+            }
+            
+            // People chips (non-interactive here, just for management)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(splitPeople) { person in
-                        PersonChip(
-                            person: person,
-                            isActive: activePerson?.persistentModelID == person.persistentModelID
+                        HStack(spacing: 8) {
+                            Text(person.emoji)
+                                .font(.title3)
+                            Text(person.name)
+                                .font(.subheadline)
+                                .foregroundStyle(.white)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color(hex: person.color).opacity(0.3))
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(Color(hex: person.color), lineWidth: 1)
                         )
-                        .onTapGesture { toggleActive(person) }
                         .onLongPressGesture { removePerson(person) }
                     }
-
-                    Button(action: { showPeoplePicker = true }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.elevatedCard)
-                                .frame(width: 52, height: 52)
-                            Image(systemName: "plus")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.appAccent)
-                        }
-                    }
                 }
-                .padding(.vertical, 4)
-            }
-
-            if let active = activePerson {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(Color(hex: active.color))
-                        .frame(width: 8, height: 8)
-                    Text("Tap items to assign to \(active.name)")
-                        .font(.caption)
-                        .foregroundStyle(.textSecondary)
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            } else if !splitPeople.isEmpty {
-                Text("Tap a person above, then tap their items — or tap any item directly")
-                    .font(.caption)
-                    .foregroundStyle(.textSecondary)
-                    .transition(.opacity)
             }
         }
         .padding(16)
         .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .animation(.spring(duration: 0.25), value: activePerson?.persistentModelID)
+    }
+    
+    // MARK: - Add People Prompt (when empty)
+    
+    var addPeoplePrompt: some View {
+        VStack(spacing: 0) {
+            Button(action: { showPeoplePicker = true }) {
+                VStack(spacing: 12) {
+                    Image(systemName: "person.2.badge.plus")
+                        .font(.system(size: 32))
+                        .foregroundStyle(.appAccent)
+                    Text("Add people to start splitting")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                    Text("Tap to select who's on this bill")
+                        .font(.subheadline)
+                        .foregroundStyle(.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 32)
+                .background(Color.cardBackground)
+            }
+        }
+        .background(.ultraThinMaterial.opacity(0.01))
+        .background(Color.appBackground.opacity(0.98))
+    }
+    
+    // MARK: - Person Selector Footer (bottom bar with people)
+    
+    var personSelectorFooter: some View {
+        VStack(spacing: 0) {
+            // Thin separator line
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(height: 1)
+            
+            // Person selector row (minimal)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ForEach(splitPeople) { person in
+                        PersonSelectorChip(
+                            person: person,
+                            isActive: activePerson?.persistentModelID == person.persistentModelID,
+                            subtotal: subtotalString(for: person)
+                        )
+                        .onTapGesture { 
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                toggleActive(person)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+            }
+            .background(Color.appBackground.opacity(0.95))
+            
+            // Continue button (compact, slides up when ready)
+            if canProceed {
+                Button(action: { showCharges = true }) {
+                    HStack(spacing: 8) {
+                        Text("Continue")
+                            .fontWeight(.semibold)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 16, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.appAccent)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(Color.appBackground.opacity(0.95))
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
     }
 
     // MARK: - Even Split Toggle
@@ -179,6 +257,11 @@ struct ItemAssignView: View {
                         for item in receipt.lineItems {
                             item.assignedPeople = splitPeople
                         }
+                    } else {
+                        // FIX: When toggled off, clear all assignments
+                        for item in receipt.lineItems {
+                            item.assignedPeople.removeAll()
+                        }
                     }
                 }
         }
@@ -190,35 +273,54 @@ struct ItemAssignView: View {
     // MARK: - Items Section
 
     var itemsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            // Minimal header
             HStack {
-                Label("ITEMS", systemImage: "list.bullet.rectangle")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.textSecondary)
+                Text("Items")
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundStyle(.white)
                 Spacer()
-                let unassigned = receipt.lineItems.filter { $0.assignedPeople.isEmpty }.count
-                if unassigned > 0 {
-                    Label("\(unassigned) unassigned", systemImage: "exclamationmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.appWarning)
+                
+                // Unassigned count (only if people exist)
+                if !splitPeople.isEmpty {
+                    let unassigned = receipt.lineItems.filter { $0.assignedPeople.isEmpty }.count
+                    if unassigned > 0 {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Color.appWarning)
+                                .frame(width: 6, height: 6)
+                            Text("\(unassigned)")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.appWarning)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.appWarning.opacity(0.15))
+                        .clipShape(Capsule())
+                    }
                 }
             }
 
-            ForEach(receipt.lineItems) { item in
-                ItemRow(
-                    item: item,
-                    splitPeople: splitPeople,
-                    activePerson: activePerson
-                ) {
-                    handleItemTap(item)
+            // Items list
+            VStack(spacing: 10) {
+                ForEach(receipt.lineItems) { item in
+                    ItemRow(
+                        item: item,
+                        splitPeople: splitPeople,
+                        activePerson: activePerson
+                    ) {
+                        handleItemTap(item)
+                    }
+                }
+                .onDelete { offsets in
+                    receipt.lineItems.remove(atOffsets: offsets)
+                    receipt.subtotal = receipt.lineItems.reduce(0) { $0 + $1.totalPrice }
                 }
             }
-            .onDelete { offsets in
-                receipt.lineItems.remove(atOffsets: offsets)
-                receipt.subtotal = receipt.lineItems.reduce(0) { $0 + $1.totalPrice }
-            }
 
+            // Add item button (minimal)
             Button(action: {
                 let newItem = LineItem(name: "", price: 0)
                 receipt.lineItems.append(newItem)
@@ -226,80 +328,20 @@ struct ItemAssignView: View {
             }) {
                 HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(.appAccent)
+                        .font(.system(size: 20))
                     Text("Add Item")
-                        .foregroundStyle(.appAccent)
+                        .fontWeight(.medium)
                 }
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .padding(16)
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    // MARK: - Footer
-
-    var footerView: some View {
-        VStack(spacing: 12) {
-            if !splitPeople.isEmpty {
-                // Running subtotals per person
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(splitPeople) { person in
-                            VStack(spacing: 3) {
-                                Text(person.emoji)
-                                    .font(.title3)
-                                Text(subtotalString(for: person))
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.white)
-                                Text(person.name)
-                                    .font(.caption2)
-                                    .foregroundStyle(.textSecondary)
-                                    .lineLimit(1)
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(Color(hex: person.color).opacity(0.18))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color(hex: person.color).opacity(0.6), lineWidth: 1)
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 2)
-                }
-            }
-
-            Button(action: { showCharges = true }) {
-                HStack {
-                    Text("Add Charges")
-                        .fontWeight(.semibold)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                }
+                .foregroundStyle(.appAccent)
                 .frame(maxWidth: .infinity)
-                .padding(16)
-                .background(canProceed ? Color.appAccent : Color.elevatedCard)
-                .foregroundStyle(canProceed ? .white : Color.textSecondary)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .disabled(!canProceed)
-
-            if !canProceed && !splitPeople.isEmpty {
-                Text(allAssigned ? "" : "Assign all items to continue")
-                    .font(.caption)
-                    .foregroundStyle(.appWarning)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 14)
+                .background(Color.appAccent.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(.ultraThinMaterial.opacity(0.01))
-        .background(Color.appBackground.opacity(0.95))
+        .padding(20)
+        .background(Color.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     // MARK: - Helpers
@@ -329,18 +371,17 @@ struct ItemAssignView: View {
     }
 
     private func handleItemTap(_ item: LineItem) {
-        if let active = activePerson {
-            evenSplit = false
-            let alreadyAssigned = item.assignedPeople.contains {
-                $0.persistentModelID == active.persistentModelID
-            }
-            if alreadyAssigned {
-                item.assignedPeople.removeAll { $0.persistentModelID == active.persistentModelID }
-            } else {
-                item.assignedPeople.append(active)
-            }
+        // Always require an active person - no modal
+        guard let active = activePerson else { return }
+        
+        evenSplit = false
+        let alreadyAssigned = item.assignedPeople.contains {
+            $0.persistentModelID == active.persistentModelID
+        }
+        if alreadyAssigned {
+            item.assignedPeople.removeAll { $0.persistentModelID == active.persistentModelID }
         } else {
-            itemForSplitSheet = item
+            item.assignedPeople.append(active)
         }
     }
 
@@ -377,33 +418,103 @@ struct ItemAssignView: View {
     }
 }
 
-// MARK: - PersonChip
+// MARK: - PersonSelectorChip (Bottom Bar)
+
+struct PersonSelectorChip: View {
+    let person: Person
+    let isActive: Bool
+    let subtotal: String
+
+    var body: some View {
+        VStack(spacing: 8) {
+            // Avatar with glow effect
+            ZStack {
+                if isActive {
+                    Circle()
+                        .fill(Color(hex: person.color))
+                        .frame(width: 72, height: 72)
+                        .blur(radius: 20)
+                        .opacity(0.6)
+                }
+                
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: isActive 
+                                ? [Color(hex: person.color), Color(hex: person.color).opacity(0.8)]
+                                : [Color(hex: person.color).opacity(0.4), Color(hex: person.color).opacity(0.3)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: isActive 
+                                        ? [Color.white.opacity(0.6), Color.white.opacity(0.2)]
+                                        : [Color.white.opacity(0.2), Color.clear],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 2
+                            )
+                    )
+                
+                Text(person.emoji)
+                    .font(.system(size: 26))
+            }
+            .scaleEffect(isActive ? 1.08 : 1.0)
+            
+            // Name and subtotal
+            VStack(spacing: 2) {
+                Text(person.name)
+                    .font(.caption)
+                    .fontWeight(isActive ? .semibold : .medium)
+                    .foregroundStyle(isActive ? .white : .textSecondary)
+                
+                Text(subtotal)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundStyle(isActive ? Color(hex: person.color) : .textSecondary.opacity(0.6))
+            }
+        }
+        .frame(width: 76)
+        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isActive)
+    }
+}
+
+// MARK: - PersonChip (unused, but keeping for compatibility)
 
 struct PersonChip: View {
     let person: Person
     let isActive: Bool
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 6) {
             ZStack {
                 Circle()
-                    .fill(Color(hex: person.color).opacity(isActive ? 1 : 0.3))
-                    .frame(width: 52, height: 52)
+                    .fill(Color(hex: person.color).opacity(isActive ? 1 : 0.4))
+                    .frame(width: 64, height: 64)
                     .overlay(
                         Circle()
-                            .stroke(Color(hex: person.color), lineWidth: isActive ? 2.5 : 0)
+                            .stroke(Color(hex: person.color), lineWidth: isActive ? 3 : 0)
                     )
-                    .shadow(color: isActive ? Color(hex: person.color).opacity(0.6) : .clear, radius: 8)
+                    .shadow(color: isActive ? Color(hex: person.color).opacity(0.6) : .clear, radius: 12, y: 4)
                 Text(person.emoji)
-                    .font(.title3)
+                    .font(.system(size: 28))
             }
+            .scaleEffect(isActive ? 1.05 : 1.0)
+            
             Text(person.name)
-                .font(.caption2)
+                .font(.caption)
+                .fontWeight(isActive ? .semibold : .regular)
                 .foregroundStyle(isActive ? .white : .textSecondary)
                 .lineLimit(1)
         }
-        .frame(width: 58)
-        .animation(.spring(duration: 0.2), value: isActive)
+        .frame(width: 72)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
     }
 }
 
@@ -427,83 +538,101 @@ struct ItemRow: View {
         return splitIDs.isSubset(of: assignedIDs)
     }
 
-    var rowTint: Color {
-        if let active = activePerson {
-            return isAssignedToActive
-                ? Color(hex: active.color).opacity(0.15)
-                : Color.elevatedCard
-        }
-        return item.assignedPeople.isEmpty ? Color.elevatedCard : Color.elevatedCard
-    }
-
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(item.name.isEmpty ? "Unnamed Item" : item.name)
+        Button(action: onTap) {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.name.isEmpty ? "Unnamed Item" : item.name)
+                        .foregroundStyle(.white)
+                        .fontWeight(.medium)
+                        .font(.body)
+                    if item.quantity > 1 {
+                        Text("\(item.quantity) × \(String(format: "$%.2f", item.price))")
+                            .font(.caption)
+                            .foregroundStyle(.textSecondary)
+                    }
+                }
+
+                Spacer()
+
+                Text(String(format: "$%.2f", item.totalPrice))
                     .foregroundStyle(.white)
-                    .fontWeight(.medium)
-                if item.quantity > 1 {
-                    Text("\(item.quantity) × \(String(format: "$%.2f", item.price))")
-                        .font(.caption)
-                        .foregroundStyle(.textSecondary)
-                }
+                    .fontWeight(.semibold)
+                    .font(.title3)
+
+                assignmentIndicator
             }
-
-            Spacer()
-
-            Text(String(format: "$%.2f", item.totalPrice))
-                .foregroundStyle(.white)
-                .fontWeight(.medium)
-
-            assignmentBadge
-        }
-        .padding(12)
-        .background(rowTint)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(
-                    activePerson.map { Color(hex: $0.color).opacity(isAssignedToActive ? 0.7 : 0) } ?? .clear,
-                    lineWidth: 1.5
-                )
-        )
-        .contentShape(Rectangle())
-        .onTapGesture { onTap() }
-        .animation(.easeInOut(duration: 0.15), value: item.assignedPeople.map { $0.persistentModelID })
-    }
-
-    @ViewBuilder
-    var assignmentBadge: some View {
-        if item.assignedPeople.isEmpty {
-            Image(systemName: "questionmark.circle.fill")
-                .foregroundStyle(.appWarning)
-                .font(.system(size: 22))
-        } else if isEveryoneAssigned {
-            Text("ALL")
-                .font(.caption2)
-                .fontWeight(.bold)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 4)
-                .background(Color.appAccent)
-                .clipShape(Capsule())
-        } else {
-            HStack(spacing: -6) {
-                ForEach(item.assignedPeople.prefix(3)) { person in
-                    Circle()
-                        .fill(Color(hex: person.color))
-                        .frame(width: 24, height: 24)
-                        .overlay(Text(person.emoji).font(.system(size: 11)))
-                }
-                if item.assignedPeople.count > 3 {
-                    Circle()
+            .padding(16)
+            .background(
+                ZStack {
+                    // Base background
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(Color.elevatedCard)
-                        .frame(width: 24, height: 24)
-                        .overlay(
-                            Text("+\(item.assignedPeople.count - 3)")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.white)
-                        )
+                    
+                    // Active person overlay
+                    if let active = activePerson, isAssignedToActive {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color(hex: active.color).opacity(0.25),
+                                        Color(hex: active.color).opacity(0.15)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(
+                        activePerson.map { active in
+                            isAssignedToActive 
+                                ? Color(hex: active.color).opacity(0.8)
+                                : Color.clear
+                        } ?? .clear,
+                        lineWidth: 2
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: item.assignedPeople.map { $0.persistentModelID })
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: activePerson?.persistentModelID)
+    }
+    
+    @ViewBuilder
+    var assignmentIndicator: some View {
+        if splitPeople.isEmpty {
+            EmptyView()
+        } else if item.assignedPeople.isEmpty {
+            Circle()
+                .fill(Color.textSecondary.opacity(0.3))
+                .frame(width: 28, height: 28)
+                .overlay(
+                    Circle()
+                        .strokeBorder(Color.textSecondary.opacity(0.5), lineWidth: 2, antialiased: true)
+                        .padding(2)
+                )
+        } else if isEveryoneAssigned {
+            ZStack {
+                Circle()
+                    .fill(Color.appAccent)
+                    .frame(width: 28, height: 28)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+        } else {
+            ZStack {
+                Circle()
+                    .fill(Color.elevatedCard)
+                    .frame(width: 28, height: 28)
+                
+                ForEach(Array(item.assignedPeople.prefix(1)), id: \.persistentModelID) { person in
+                    Text(person.emoji)
+                        .font(.system(size: 14))
                 }
             }
         }
