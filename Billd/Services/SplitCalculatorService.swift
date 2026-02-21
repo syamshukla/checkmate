@@ -31,13 +31,12 @@ class SplitCalculatorService {
             personMap[key] = person
         }
 
-        // Each assigned person pays item.totalPrice / assignedPeople.count
+        // Each assigned person pays their portion (proportional if portionMap is set, else equal split)
         for item in lineItems {
             guard !item.assignedPeople.isEmpty else { continue }
-            let share = item.totalPrice / Double(item.assignedPeople.count)
             for person in item.assignedPeople {
                 let key = ObjectIdentifier(person)
-                personSubtotals[key, default: 0] += share
+                personSubtotals[key, default: 0] += item.amountOwed(byPersonID: person.personID)
                 if personMap[key] == nil { personMap[key] = person }
             }
         }

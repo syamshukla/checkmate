@@ -18,6 +18,9 @@ final class Person {
     /// Unique identifier stored as string for AppStorage compatibility
     @Attribute(.unique) var personID: String
 
+    /// Venmo username (without @) — saved once per person for quick request links
+    var venmoHandle: String = ""
+
     init(
         name: String,
         emoji: String = "👤",

@@ -55,10 +55,14 @@ private struct TextObservation {
 /// A group of observations that sit on the same horizontal line of the receipt
 private struct TextRow {
     var observations: [TextObservation]
+    /// Y of the first observation added — used as a stable anchor for row membership.
+    /// Using a rolling average caused drift: each added observation nudged the average
+    /// toward the next row, eventually pulling in observations that belong below.
+    let anchorY: CGFloat
 
-    var averageMidY: CGFloat {
-        guard !observations.isEmpty else { return 0 }
-        return observations.reduce(0) { $0 + $1.midY } / CGFloat(observations.count)
+    init(firstObservation: TextObservation) {
+        self.observations = [firstObservation]
+        self.anchorY = firstObservation.midY
     }
 
     /// Observations sorted left-to-right
@@ -99,7 +103,10 @@ class OCRService {
 
     func extractReceiptData(from image: UIImage) async -> ParsedReceipt {
         print("📸 Preprocessing image for OCR...")
-        let enhancedImage = ImagePreprocessor.shared.enhanceForOCR(image)
+        // Perspective-correct first so that row Y-coordinates are accurate,
+        // then apply contrast enhancement.
+        let correctedImage = await ImagePreprocessor.shared.correctPerspective(image)
+        let enhancedImage = ImagePreprocessor.shared.enhanceForOCR(correctedImage)
 
         guard let cgImage = enhancedImage.cgImage else {
             return ParsedReceipt(restaurantName: nil, items: [], subtotal: nil, tax: nil, tip: nil, discount: nil, total: nil)
@@ -198,15 +205,18 @@ class OCRService {
         let threshold = max(avgHeight * 0.6, 0.005)
 
         var rows: [TextRow] = []
-        var currentRow = TextRow(observations: [sorted[0]])
+        var currentRow = TextRow(firstObservation: sorted[0])
 
         for i in 1..<sorted.count {
             let obs = sorted[i]
-            if abs(obs.midY - currentRow.averageMidY) <= threshold {
+            // Compare against the row's anchor Y (first observation), not a rolling
+            // average. The rolling average drifts as observations are added, which can
+            // pull a price from the row below into the current row.
+            if abs(obs.midY - currentRow.anchorY) <= threshold {
                 currentRow.observations.append(obs)
             } else {
                 rows.append(currentRow)
-                currentRow = TextRow(observations: [obs])
+                currentRow = TextRow(firstObservation: obs)
             }
         }
         rows.append(currentRow)
@@ -271,8 +281,30 @@ class OCRService {
 
         // Phase 2: Extract structured data from each section
         let restaurantName = extractRestaurantNameFromHeader(headerRows)
-        let items = extractItemsFromRows(itemRows)
         let totals = extractTotalsFromRows(totalsRows)
+
+        // Agentic strategy: run spatial parsing first, then validate against the printed
+        // subtotal. If the spatial result is off by more than 20%, retry with flat
+        // text-line parsing (the same text a human would see if they copy-pasted the receipt).
+        // Pick whichever strategy produces totals closer to the printed subtotal.
+        var items = extractItemsFromRows(itemRows)
+        if let subtotal = totals.subtotal, subtotal > 0, !itemRows.isEmpty {
+            let spatialTotal = items.reduce(0.0) { $0 + $1.price * Double($1.quantity) }
+            let spatialDiff  = abs(spatialTotal - subtotal) / subtotal
+            if spatialDiff > 0.20 {
+                let flatItems = parseItemsFlatFromRows(itemRows)
+                if !flatItems.isEmpty {
+                    let flatTotal = flatItems.reduce(0.0) { $0 + $1.price * Double($1.quantity) }
+                    let flatDiff  = abs(flatTotal - subtotal) / subtotal
+                    if flatDiff < spatialDiff {
+                        print("📐 Flat-line parsing preferred (spatial Δ \(Int(spatialDiff*100))% → flat Δ \(Int(flatDiff*100))%)")
+                        items = flatItems
+                    } else {
+                        print("📐 Keeping spatial result (spatial Δ \(Int(spatialDiff*100))% ≤ flat Δ \(Int(flatDiff*100))%)")
+                    }
+                }
+            }
+        }
 
         var receipt = ParsedReceipt(
             restaurantName: restaurantName,
@@ -310,30 +342,40 @@ class OCRService {
 
     /// Extracts line items from rows classified as belonging to the items section.
     ///
-    /// Uses a stateful "pending name" strategy to handle indented/multi-line receipt formats
+    /// Uses a stateful "pending name" strategy to handle multi-line receipt formats
     /// where the item name appears on its own row above the price row, e.g.:
     ///
     ///   House Fried Rice          ← name-only row → becomes pendingName
-    ///     Spicy Chicken           ← modifier row  → ignored (pendingName already set)
     ///     extra crispy ......30$  ← price row     → item created using pendingName
     ///
-    /// Key rule: a no-price row only becomes a pending name if the *previous* row was also
-    /// a no-price row (or this is the very start). A no-price row that immediately follows a
-    /// priced row is treated as a post-item descriptor and ignored — this prevents lines like
-    /// "[special instructions]" from being mistaken for the name of the next item.
+    /// A no-price row becomes a pendingName whenever:
+    ///   • No pending name is already set (first candidate wins), AND
+    ///   • The text looks like an item name (not a modifier/descriptor).
+    ///
+    /// This replaces the old "!lastRowHadPrice" guard which silently dropped item names
+    /// that appeared immediately after a priced row — a very common receipt layout.
     private func extractItemsFromRows(_ rows: [TextRow]) -> [ParsedLineItem] {
         var items: [ParsedLineItem] = []
         var pendingName: String? = nil  // Name-only row waiting for the next price row
-        var lastRowHadPrice = false     // Whether the most recent row contained a price
 
         for row in rows {
             let price = findPriceInRow(row)
 
             if let price = price {
                 if let pending = pendingName {
-                    // A dedicated name row preceded this price row.
-                    // Use the pending name; ignore any inline text on the price row (it's a modifier).
-                    if !isTotalsKeyword(pending.lowercased()) {
+                    // A name-only row preceded this price row.
+                    // First try to extract an inline name from the price row itself.
+                    // If that inline name is a real item name (not a modifier/descriptor),
+                    // it wins — the pending row was a section header or unrelated text.
+                    // If the inline parse fails or its name looks like a modifier (e.g.
+                    // "extra crispy"), fall back to the pending name.
+                    let inlineItem = parseItemFromRow(row)
+                    let inlineNameIsGood = inlineItem.map { !isModifierLine($0.name) } ?? false
+
+                    if inlineNameIsGood, let item = inlineItem {
+                        items.append(item)
+                        print("  📦 Inline (discarded pending '\(pending)'): \(item.name) @ $\(String(format: "%.2f", item.price))")
+                    } else if !isTotalsKeyword(pending.lowercased()) {
                         let (name, quantity) = extractQuantityAndName(from: pending)
                         let unitPrice = price / Double(quantity)
                         if !name.isEmpty, name.count > 1, unitPrice > 0, unitPrice < 1000 {
@@ -349,22 +391,19 @@ class OCRService {
                         items.append(item)
                     }
                 }
-                lastRowHadPrice = true
 
             } else {
                 // No price on this row — could be an item name for the next priced row.
-                // Only treat as pending name if:
-                //   • The previous row was NOT a price row (lastRowHadPrice == false), AND
-                //   • No pending name is already waiting (pendingName == nil).
-                // A no-price row immediately after a price row is a post-item descriptor; ignore it.
-                // A second+ consecutive no-price row (pendingName already set) is a modifier; ignore it.
+                // Set as pendingName if:
+                //   • No pending name is already waiting (first candidate wins), AND
+                //   • The text looks like an item name, not a modifier/descriptor.
                 let text = row.fullText.trimmingCharacters(in: .whitespaces)
-                if !lastRowHadPrice, pendingName == nil,
-                   !isNoise(text), !isTotalsKeyword(text.lowercased()), text.count > 1 {
+                if pendingName == nil,
+                   !isNoise(text), !isTotalsKeyword(text.lowercased()), text.count > 1,
+                   !isModifierLine(text) {
                     pendingName = text
                     print("  🏷️ Pending name set: '\(text)'")
                 }
-                lastRowHadPrice = false
             }
         }
 
@@ -375,6 +414,34 @@ class OCRService {
         }
 
         return deduplicate(items)
+    }
+
+    /// Returns true if a no-price line looks like a modifier or descriptor rather than
+    /// a new item name. Modifiers are typically:
+    ///   • Parenthesized:  "(no onions)", "(add cheese)"
+    ///   • All lowercase with no leading capital: "extra crispy", "well done"
+    ///   • Very short single words:  "Large", "Sm"  — too ambiguous alone
+    ///   • Leading whitespace (indented on the original receipt)
+    ///   • Purely numeric or symbol-heavy
+    private func isModifierLine(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+
+        // Parenthesized text is always a modifier
+        if trimmed.hasPrefix("(") && trimmed.hasSuffix(")") { return true }
+
+        // All lowercase multi-word → likely a descriptor, not an item name
+        // e.g. "extra crispy", "well done", "no onions"
+        if trimmed == trimmed.lowercased() && trimmed.contains(" ") { return true }
+
+        // Multi-word ALL-CAPS → section header (APPETIZERS, COLD DRINKS, etc.)
+        // Single-word all-caps (BURGER) could be a real item name so we require a space.
+        let letters = trimmed.filter { $0.isLetter }
+        if letters.count > 3, letters.allSatisfy({ $0.isUppercase }), trimmed.contains(" ") { return true }
+
+        // Very short single token with no digits (e.g. size modifier "Lg", "Sm")
+        if !trimmed.contains(" ") && trimmed.count <= 3 { return true }
+
+        return false
     }
 
     /// Parses a single row into a line item using spatial and text analysis.
@@ -526,6 +593,29 @@ class OCRService {
             i += 1
         }
         return items
+    }
+
+    /// Flat-line fallback: parse each row's full text as a self-contained "name  price" string,
+    /// exactly the way a human reads copy-pasted receipt text.
+    /// Used by the agentic strategy selector when spatial parsing mismatches the subtotal.
+    private func parseItemsFlatFromRows(_ rows: [TextRow]) -> [ParsedLineItem] {
+        var items: [ParsedLineItem] = []
+        let lines = rows.map { $0.fullText }
+
+        // Pass 1: combined-line patterns on each row (name + price in one string)
+        for line in lines {
+            if let item = parseCombinedLine(line),
+               !isTotalsKeyword(item.name.lowercased()) {
+                items.append(item)
+            }
+        }
+
+        // Pass 2: adjacent-line (name row then price-only row)
+        if items.isEmpty {
+            items = parseAdjacentLines(lines)
+        }
+
+        return deduplicate(items)
     }
 
     // MARK: - Price Parsing

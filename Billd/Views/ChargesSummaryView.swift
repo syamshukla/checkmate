@@ -23,7 +23,9 @@ struct ChargesSummaryView: View {
 
     var body: some View {
         ZStack {
+            // Tap anywhere on the background to dismiss the numpad
             Color.appBackground.ignoresSafeArea()
+                .onTapGesture { hideKeyboard() }
 
             ScrollView {
                 VStack(spacing: 16) {
@@ -40,10 +42,21 @@ struct ChargesSummaryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Color.appBackground, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .keyboard) {
+                Button("Done") { hideKeyboard() }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
         .onAppear { recalculate() }
         .onChange(of: receipt.tax)      { _, _ in recalculate() }
         .onChange(of: receipt.tip)      { _, _ in recalculate() }
         .onChange(of: receipt.discount) { _, _ in recalculate() }
+    }
+
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                        to: nil, from: nil, for: nil)
     }
 
     // MARK: - Charges Card
@@ -94,7 +107,12 @@ struct ChargesSummaryView: View {
                 ForEach(splitPeople.sorted { $0.name < $1.name }) { person in
                     let key = ObjectIdentifier(person)
                     let detail = splits[key] ?? SplitDetails(subtotal: 0, tax: 0, tip: 0, discount: 0, total: 0)
-                    PersonSplitCard(person: person, detail: detail)
+                    PersonSplitCard(
+                        person: person,
+                        detail: detail,
+                        receipt: receipt,
+                        restaurantName: receipt.restaurantName
+                    )
                 }
             }
         }
@@ -209,43 +227,104 @@ struct ChargesSummaryView: View {
 struct PersonSplitCard: View {
     let person: Person
     let detail: SplitDetails
+    let receipt: Receipt
+    let restaurantName: String
+    @State private var isExpanded = false
+
+    /// Items this person has a share in, with their computed amount.
+    private var assignedItems: [(LineItem, Double)] {
+        receipt.lineItems.compactMap { item in
+            let amount = item.amountOwed(byPersonID: person.personID)
+            guard amount > 0.005 else { return nil }
+            return (item, amount)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header row
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(Color(hex: person.color).opacity(0.3))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Circle()
-                            .stroke(Color(hex: person.color), lineWidth: 1.5)
-                    )
-                    .overlay(Text(person.emoji).font(.title3))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(person.name)
-                        .foregroundStyle(.white)
-                        .fontWeight(.semibold)
-                    Text("Total owed")
-                        .font(.caption)
-                        .foregroundStyle(.textSecondary)
+            // ── Header (tappable to expand/collapse) ──
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isExpanded.toggle()
                 }
+            } label: {
+                HStack(spacing: 12) {
+                    Circle()
+                        .fill(Color(hex: person.color).opacity(0.25))
+                        .frame(width: 44, height: 44)
+                        .overlay(Circle().stroke(Color(hex: person.color), lineWidth: 1.5))
+                        .overlay(Text(person.emoji).font(.title3))
 
-                Spacer()
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(person.name)
+                            .foregroundStyle(.white).fontWeight(.semibold)
+                        Text("\(assignedItems.count) item\(assignedItems.count == 1 ? "" : "s") · tap to see breakdown")
+                            .font(.caption).foregroundStyle(.textSecondary)
+                    }
 
-                Text(String(format: "$%.2f", detail.total))
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundStyle(Color(hex: person.color))
+                    Spacer()
+
+                    Text(String(format: "$%.2f", detail.total))
+                        .font(.title2).fontWeight(.bold)
+                        .foregroundStyle(Color(hex: person.color))
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundStyle(.textSecondary)
+                        .frame(width: 16)
+                }
+                .padding(16)
             }
-            .padding(16)
+            .buttonStyle(PlainButtonStyle())
 
+            // ── Collapsible item breakdown ──
+            if isExpanded && !assignedItems.isEmpty {
+                Divider().background(Color.elevatedCard)
+
+                VStack(spacing: 0) {
+                    ForEach(Array(assignedItems.enumerated()), id: \.offset) { idx, pair in
+                        let (item, amount) = pair
+                        HStack(spacing: 10) {
+                            // Portion badge for multi-qty items
+                            if item.quantity > 1, let portions = item.portionMap[person.personID], portions > 0 {
+                                Text("\(portions)×")
+                                    .font(.caption2).fontWeight(.bold)
+                                    .foregroundStyle(Color(hex: person.color))
+                                    .frame(width: 22)
+                            } else {
+                                Circle()
+                                    .fill(Color(hex: person.color).opacity(0.5))
+                                    .frame(width: 6, height: 6)
+                                    .frame(width: 22)
+                            }
+                            Text(item.name.isEmpty ? "Item" : item.name)
+                                .font(.subheadline).foregroundStyle(.white)
+                            Spacer()
+                            Text(String(format: "$%.2f", amount))
+                                .font(.subheadline).foregroundStyle(.textSecondary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 9)
+                        .background(
+                            idx % 2 == 0
+                                ? Color.clear
+                                : Color.white.opacity(0.02)
+                        )
+                        if idx < assignedItems.count - 1 {
+                            Divider()
+                                .background(Color.white.opacity(0.05))
+                                .padding(.leading, 48)
+                        }
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            // ── Charges breakdown (items subtotal + tax/tip/discount) ──
             Divider().background(Color.elevatedCard)
 
-            // Breakdown rows
             VStack(spacing: 0) {
-                breakdownRow(label: "Items", value: detail.subtotal)
+                breakdownRow(label: isExpanded ? "Items subtotal" : "Items", value: detail.subtotal)
                 if detail.tax > 0.005 {
                     Divider().background(Color.elevatedCard).padding(.horizontal, 14)
                     breakdownRow(label: "Tax", value: detail.tax)
@@ -260,20 +339,68 @@ struct PersonSplitCard: View {
                 }
             }
             .padding(.bottom, 8)
+
+            // ── Venmo request button ──
+            Divider().background(Color.elevatedCard)
+            venmoButton
         }
         .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(hex: person.color).opacity(0.25), lineWidth: 1)
+                .stroke(Color(hex: person.color).opacity(isExpanded ? 0.45 : 0.2), lineWidth: 1)
         )
+    }
+
+    // MARK: Venmo — opens app with amount pre-filled; user picks recipient inside Venmo
+
+    private var venmoButton: some View {
+        Button {
+            openVenmo(amount: detail.total)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "dollarsign.circle.fill")
+                    .font(.system(size: 15))
+                Text("Request \(String(format: "$%.2f", detail.total)) on Venmo")
+                    .fontWeight(.semibold)
+                    .font(.subheadline)
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color(hex: "0074DE"))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 14)
+            .padding(.bottom, 12)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    private func openVenmo(amount: Double) {
+        let note = "Billd: \(restaurantName.isEmpty ? "dinner" : restaurantName)"
+        let amountStr = String(format: "%.2f", amount)
+        // .urlQueryAllowed keeps + unencoded, so Venmo shows literal '+' characters in the
+        // note field (common OCR artifacts from receipt borders like +----+). Remove + and
+        // other structural characters (&, =, #) so they get percent-escaped instead.
+        var valueEncoding = CharacterSet.urlQueryAllowed
+        valueEncoding.remove(charactersIn: "+&=#")
+        guard let encoded = note.addingPercentEncoding(withAllowedCharacters: valueEncoding) else { return }
+
+        // No recipient pre-filled — user selects inside Venmo so it links to the correct account
+        let appURL = URL(string: "venmo://paycharge?txn=charge&amount=\(amountStr)&note=\(encoded)")
+        let webURL = URL(string: "https://venmo.com/?txn=charge&amount=\(amountStr)&note=\(encoded)")
+
+        if let appURL, UIApplication.shared.canOpenURL(appURL) {
+            UIApplication.shared.open(appURL)
+        } else if let webURL {
+            UIApplication.shared.open(webURL)
+        }
     }
 
     private func breakdownRow(label: String, value: Double, isNegative: Bool = false) -> some View {
         HStack {
             Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.textSecondary)
+                .font(.subheadline).foregroundStyle(.textSecondary)
             Spacer()
             Text(String(format: "%@$%.2f", isNegative ? "−" : "+", abs(value)))
                 .font(.subheadline)

@@ -154,42 +154,9 @@ struct ItemAssignView: View {
                     .padding(.vertical, 28)
                 }
             } else {
-                // ── Header: label + Add Me + Add (+) ──
-                HStack(spacing: 8) {
-                    Label("PEOPLE", systemImage: "person.2.fill")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.textSecondary)
-                    Spacer()
-
-                    if let currentUser = currentUser, !isCurrentUserInSplit {
-                        Button(action: { addCurrentUser() }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "person.fill.badge.plus")
-                                Text("Add Me")
-                            }
-                            .font(.caption)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color.appAccent)
-                            .clipShape(Capsule())
-                        }
-                    }
-
-                    Button(action: { showPeoplePicker = true }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.appAccent)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-                .padding(.bottom, 4)
-
-                // ── Scrollable person chips (tap to select, long-press to remove) ──
+                // ── Person chips + inline add chip ──
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 16) {
+                    HStack(spacing: 10) {
                         ForEach(splitPeople) { person in
                             PersonSelectorChip(
                                 person: person,
@@ -203,10 +170,48 @@ struct ItemAssignView: View {
                             }
                             .onLongPressGesture { removePerson(person) }
                         }
+
+                        // Add Me chip (only when current user not present)
+                        if let currentUser = currentUser, !isCurrentUserInSplit {
+                            Button(action: { addCurrentUser() }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "person.fill.checkmark")
+                                        .font(.caption)
+                                    Text("Add Me")
+                                        .font(.caption).fontWeight(.semibold)
+                                }
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 12).padding(.vertical, 8)
+                                .background(Color.appAccent.opacity(0.85))
+                                .clipShape(Capsule())
+                            }
+                        }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+                    .padding(.bottom, 6)
                 }
+
+                // ── Full-width Add Person button ──
+                Button(action: { showPeoplePicker = true }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Add Person")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .foregroundStyle(Color.appAccent)
+                    .background(Color.appAccent.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.appAccent.opacity(0.35), lineWidth: 1)
+                    )
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 6)
 
                 // ── Continue button (slides in when all items assigned) ──
                 if canProceed {
@@ -218,13 +223,13 @@ struct ItemAssignView: View {
                                 .font(.system(size: 16, weight: .semibold))
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                        .padding(.vertical, 13)
                         .background(Color.appAccent)
                         .foregroundStyle(.white)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
@@ -262,9 +267,13 @@ struct ItemAssignView: View {
                     }
                 }
         }
-        .padding(16)
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(14)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.09), lineWidth: 0.5)
+        }
     }
 
     // MARK: - Items Section
@@ -301,7 +310,7 @@ struct ItemAssignView: View {
             }
 
             // Items list
-            VStack(spacing: 10) {
+            VStack(spacing: 6) {
                 ForEach(receipt.lineItems) { item in
                     ItemRow(
                         item: item,
@@ -309,6 +318,29 @@ struct ItemAssignView: View {
                         activePerson: activePerson
                     ) {
                         handleItemTap(item)
+                    }
+                    .contextMenu {
+                        Button {
+                            itemForSplitSheet = item
+                        } label: {
+                            Label("Split by Weight", systemImage: "chart.pie.fill")
+                        }
+                        // Quick-assign everyone
+                        Button {
+                            item.assignedPeople = splitPeople
+                            item.portionMap = [:]
+                        } label: {
+                            Label("Assign to Everyone", systemImage: "person.3.fill")
+                        }
+                        // Clear
+                        if !item.assignedPeople.isEmpty {
+                            Button(role: .destructive) {
+                                item.assignedPeople.removeAll()
+                                item.portionMap = [:]
+                            } label: {
+                                Label("Clear Assignment", systemImage: "xmark.circle")
+                            }
+                        }
                     }
                 }
                 .onDelete { offsets in
@@ -336,9 +368,13 @@ struct ItemAssignView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
         }
-        .padding(20)
-        .background(Color.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .padding(14)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.09), lineWidth: 0.5)
+        }
     }
 
     // MARK: - Helpers
@@ -383,13 +419,7 @@ struct ItemAssignView: View {
     }
 
     private func subtotalString(for person: Person) -> String {
-        var total = 0.0
-        for item in receipt.lineItems {
-            guard !item.assignedPeople.isEmpty,
-                  item.assignedPeople.contains(where: { $0.persistentModelID == person.persistentModelID })
-            else { continue }
-            total += item.totalPrice / Double(item.assignedPeople.count)
-        }
+        let total = receipt.lineItems.reduce(0.0) { $0 + $1.amountOwed(byPersonID: person.personID) }
         return String(format: "$%.2f", total)
     }
 
@@ -433,68 +463,53 @@ struct ItemAssignView: View {
 
 // MARK: - PersonSelectorChip (Bottom Bar)
 
+/// Compact horizontal pill: emoji + name + running subtotal.
+/// Much shorter than the old 60px-circle design so the bottom bar doesn't eat screen.
 struct PersonSelectorChip: View {
     let person: Person
     let isActive: Bool
     let subtotal: String
 
     var body: some View {
-        VStack(spacing: 8) {
-            // Avatar with glow effect
+        HStack(spacing: 10) {
+            // Compact avatar
             ZStack {
-                if isActive {
-                    Circle()
-                        .fill(Color(hex: person.color))
-                        .frame(width: 72, height: 72)
-                        .blur(radius: 20)
-                        .opacity(0.6)
-                }
-                
                 Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: isActive 
-                                ? [Color(hex: person.color), Color(hex: person.color).opacity(0.8)]
-                                : [Color(hex: person.color).opacity(0.4), Color(hex: person.color).opacity(0.3)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 60, height: 60)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: isActive 
-                                        ? [Color.white.opacity(0.6), Color.white.opacity(0.2)]
-                                        : [Color.white.opacity(0.2), Color.clear],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 2
-                            )
-                    )
-                
+                    .fill(isActive
+                          ? Color(hex: person.color)
+                          : Color(hex: person.color).opacity(0.35))
+                    .frame(width: 36, height: 36)
                 Text(person.emoji)
-                    .font(.system(size: 26))
+                    .font(.system(size: 17))
             }
-            .scaleEffect(isActive ? 1.08 : 1.0)
-            
-            // Name and subtotal
-            VStack(spacing: 2) {
+
+            // Name + running total
+            VStack(alignment: .leading, spacing: 1) {
                 Text(person.name)
-                    .font(.caption)
+                    .font(.subheadline)
                     .fontWeight(isActive ? .semibold : .medium)
                     .foregroundStyle(isActive ? .white : .textSecondary)
-                
+                    .lineLimit(1)
                 Text(subtotal)
                     .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(isActive ? Color(hex: person.color) : .textSecondary.opacity(0.6))
+                    .foregroundStyle(isActive
+                                     ? Color(hex: person.color)
+                                     : .textSecondary.opacity(0.7))
             }
         }
-        .frame(width: 76)
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: isActive)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(isActive ? Color(hex: person.color).opacity(0.2) : Color.elevatedCard)
+        )
+        .overlay(
+            Capsule()
+                .stroke(isActive ? Color(hex: person.color).opacity(0.7) : Color.clear,
+                        lineWidth: 1.5)
+        )
+        .scaleEffect(isActive ? 1.02 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
     }
 }
 
@@ -553,16 +568,43 @@ struct ItemRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(item.name.isEmpty ? "Unnamed Item" : item.name)
                         .foregroundStyle(.white)
                         .fontWeight(.medium)
-                        .font(.body)
+                        .font(.subheadline)
                     if item.quantity > 1 {
-                        Text("\(item.quantity) × \(String(format: "$%.2f", item.price))")
-                            .font(.caption)
-                            .foregroundStyle(.textSecondary)
+                        HStack(spacing: 4) {
+                            Text("\(item.quantity) × \(String(format: "$%.2f", item.price))")
+                                .font(.caption2)
+                                .foregroundStyle(.textSecondary)
+                            if !item.portionMap.isEmpty {
+                                let claimed = item.portionMap.values.reduce(0, +)
+                                Text("· \(claimed)/\(item.quantity) portions")
+                                    .font(.caption2)
+                                    .foregroundStyle(.appAccent)
+                            } else if !splitPeople.isEmpty {
+                                Text("· hold to weight")
+                                    .font(.caption2)
+                                    .foregroundStyle(.textSecondary.opacity(0.5))
+                            }
+                        }
+                    } else if !item.portionMap.isEmpty {
+                        // Single item with a custom weight split — show the ratio
+                        let parts = item.assignedPeople.compactMap { p -> String? in
+                            let w = item.portionMap[p.personID] ?? 0
+                            return w > 0 ? "\(w)" : nil
+                        }
+                        if !parts.isEmpty {
+                            Text("weighted \(parts.joined(separator: ":"))")
+                                .font(.caption2)
+                                .foregroundStyle(.appAccent)
+                        }
+                    } else if !splitPeople.isEmpty && !item.assignedPeople.isEmpty {
+                        Text("· hold to weight")
+                            .font(.caption2)
+                            .foregroundStyle(.textSecondary.opacity(0.5))
                     }
                 }
 
@@ -571,81 +613,69 @@ struct ItemRow: View {
                 Text(String(format: "$%.2f", item.totalPrice))
                     .foregroundStyle(.white)
                     .fontWeight(.semibold)
-                    .font(.title3)
+                    .font(.callout)
 
                 assignmentIndicator
             }
-            .padding(16)
-            .background(
-                ZStack {
-                    // Base background
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.elevatedCard)
-                    
-                    // Active person overlay
-                    if let active = activePerson, isAssignedToActive {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color(hex: active.color).opacity(0.25),
-                                        Color(hex: active.color).opacity(0.15)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                if let active = activePerson, isAssignedToActive {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(hex: active.color).opacity(0.30),
+                                    Color(hex: active.color).opacity(0.18)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
-                    }
+                        )
                 }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .stroke(
-                        activePerson.map { active in
-                            isAssignedToActive 
-                                ? Color(hex: active.color).opacity(0.8)
-                                : Color.clear
-                        } ?? .clear,
-                        lineWidth: 2
+                        isAssignedToActive
+                            ? (activePerson.map { Color(hex: $0.color).opacity(0.75) } ?? .clear)
+                            : Color.white.opacity(0.07),
+                        lineWidth: isAssignedToActive ? 1.5 : 0.5
                     )
-            )
+            }
         }
         .buttonStyle(PlainButtonStyle())
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: item.assignedPeople.map { $0.persistentModelID })
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: activePerson?.persistentModelID)
+        .animation(.spring(response: 0.28, dampingFraction: 0.8), value: item.assignedPeople.map { $0.persistentModelID })
+        .animation(.spring(response: 0.28, dampingFraction: 0.8), value: activePerson?.persistentModelID)
     }
-    
+
     @ViewBuilder
     var assignmentIndicator: some View {
         if splitPeople.isEmpty {
             EmptyView()
         } else if item.assignedPeople.isEmpty {
             Circle()
-                .fill(Color.textSecondary.opacity(0.3))
-                .frame(width: 28, height: 28)
-                .overlay(
-                    Circle()
-                        .strokeBorder(Color.textSecondary.opacity(0.5), lineWidth: 2, antialiased: true)
-                        .padding(2)
-                )
+                .strokeBorder(Color.textSecondary.opacity(0.4), lineWidth: 1.5)
+                .frame(width: 24, height: 24)
         } else if isEveryoneAssigned {
             ZStack {
                 Circle()
                     .fill(Color.appAccent)
-                    .frame(width: 28, height: 28)
+                    .frame(width: 24, height: 24)
                 Image(systemName: "checkmark")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.white)
             }
         } else {
             ZStack {
                 Circle()
-                    .fill(Color.elevatedCard)
-                    .frame(width: 28, height: 28)
-                
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 24, height: 24)
                 ForEach(Array(item.assignedPeople.prefix(1)), id: \.persistentModelID) { person in
                     Text(person.emoji)
-                        .font(.system(size: 14))
+                        .font(.system(size: 12))
                 }
             }
         }
@@ -659,108 +689,19 @@ struct ItemSplitSheet: View {
     let splitPeople: [Person]
     @Environment(\.dismiss) private var dismiss
 
-    var perPersonAmount: String {
-        guard !item.assignedPeople.isEmpty else { return "" }
-        let amt = item.totalPrice / Double(item.assignedPeople.count)
-        return String(format: "$%.2f each", amt)
-    }
+    private var totalClaimed: Int { item.portionMap.values.reduce(0, +) }
+    // Always use the weighted stepper UI — works for units (qty>1) and ratio weights (qty==1)
+    private var isMultiQty: Bool { item.quantity > 1 }
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.appBackground.ignoresSafeArea()
-
                 ScrollView {
                     VStack(spacing: 16) {
-                        // Item summary
-                        HStack {
-                            Text(item.name.isEmpty ? "Item" : item.name)
-                                .foregroundStyle(.white)
-                                .fontWeight(.semibold)
-                                .font(.title3)
-                            Spacer()
-                            Text(String(format: "$%.2f", item.totalPrice))
-                                .foregroundStyle(.white)
-                                .fontWeight(.semibold)
-                                .font(.title3)
-                        }
-                        .padding(16)
-                        .background(Color.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-
-                        // Per-person cost pill
-                        if !item.assignedPeople.isEmpty {
-                            Text(perPersonAmount)
-                                .font(.headline)
-                                .foregroundStyle(.appAccent)
-                                .frame(maxWidth: .infinity)
-                                .padding(12)
-                                .background(Color.appAccent.opacity(0.15))
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        }
-
-                        // Everyone button
-                        if !splitPeople.isEmpty {
-                            Button(action: {
-                                item.assignedPeople = splitPeople
-                            }) {
-                                HStack {
-                                    Image(systemName: "person.3.fill")
-                                    Text("Everyone")
-                                        .fontWeight(.semibold)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(14)
-                                .background(Color.appAccent)
-                                .foregroundStyle(.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                            }
-                        }
-
-                        // Per-person toggles
-                        VStack(spacing: 10) {
-                            ForEach(splitPeople) { person in
-                                let assigned = item.assignedPeople.contains {
-                                    $0.persistentModelID == person.persistentModelID
-                                }
-                                Button(action: {
-                                    if assigned {
-                                        item.assignedPeople.removeAll {
-                                            $0.persistentModelID == person.persistentModelID
-                                        }
-                                    } else {
-                                        item.assignedPeople.append(person)
-                                    }
-                                }) {
-                                    HStack(spacing: 14) {
-                                        Circle()
-                                            .fill(Color(hex: person.color))
-                                            .frame(width: 38, height: 38)
-                                            .overlay(Text(person.emoji).font(.system(size: 18)))
-                                        Text(person.name)
-                                            .foregroundStyle(.white)
-                                            .fontWeight(.medium)
-                                        Spacer()
-                                        Image(systemName: assigned ? "checkmark.circle.fill" : "circle")
-                                            .foregroundStyle(assigned ? Color(hex: person.color) : .textSecondary)
-                                            .font(.system(size: 22))
-                                    }
-                                    .padding(14)
-                                    .background(
-                                        assigned
-                                            ? Color(hex: person.color).opacity(0.15)
-                                            : Color.cardBackground
-                                    )
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(assigned ? Color(hex: person.color).opacity(0.5) : .clear, lineWidth: 1)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer()
+                        itemSummaryCard
+                        portionSection
+                        Spacer(minLength: 20)
                     }
                     .padding(16)
                 }
@@ -777,6 +718,249 @@ struct ItemSplitSheet: View {
                 }
             }
         }
+    }
+
+    // MARK: Item summary
+
+    private var itemSummaryCard: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.name.isEmpty ? "Item" : item.name)
+                    .foregroundStyle(.white).fontWeight(.semibold).font(.title3)
+                if item.quantity > 1 {
+                    Text("\(item.quantity) × \(String(format: "$%.2f", item.price))")
+                        .font(.caption).foregroundStyle(.textSecondary)
+                }
+            }
+            Spacer()
+            Text(String(format: "$%.2f", item.totalPrice))
+                .foregroundStyle(.white).fontWeight(.semibold).font(.title3)
+        }
+        .padding(16)
+        .background(Color.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    // MARK: Weighted stepper — works for units (qty>1) and ratio weights (qty==1)
+
+    private var portionSection: some View {
+        VStack(spacing: 12) {
+            // Header
+            HStack {
+                Text(isMultiQty ? "How many did each person have?" : "Set the split weight for each person")
+                    .font(.subheadline).foregroundStyle(.white).fontWeight(.medium)
+                Spacer()
+                if isMultiQty {
+                    let remaining = item.quantity - totalClaimed
+                    Text(remaining == 0 ? "All assigned" : "\(remaining) remaining")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundStyle(remaining == 0 ? Color.green : .appWarning)
+                } else if totalClaimed > 0 {
+                    // Show the ratio, e.g. "2 : 1"
+                    let parts = splitPeople.compactMap { p -> String? in
+                        let w = item.portionMap[p.personID] ?? 0
+                        return w > 0 ? "\(w)" : nil
+                    }
+                    Text(parts.joined(separator: " : "))
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundStyle(.appAccent)
+                }
+            }
+
+            // Per-person stepper rows
+            VStack(spacing: 10) {
+                ForEach(splitPeople) { person in
+                    portionRow(for: person)
+                }
+            }
+
+            // Quick actions
+            HStack(spacing: 10) {
+                // Split evenly (clears portionMap → equal split)
+                Button {
+                    var map = item.portionMap
+                    map = [:]
+                    item.portionMap = map
+                    item.assignedPeople = splitPeople
+                } label: {
+                    Label("Split Evenly", systemImage: "equal.circle")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(10)
+                        .background(Color.appAccent)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+
+                // Reset all
+                if !item.portionMap.isEmpty || !item.assignedPeople.isEmpty {
+                    Button {
+                        item.portionMap = [:]
+                        item.assignedPeople = []
+                    } label: {
+                        Label("Clear", systemImage: "xmark.circle")
+                            .font(.caption).fontWeight(.semibold)
+                            .foregroundStyle(.appDestructive)
+                            .frame(maxWidth: .infinity)
+                            .padding(10)
+                            .background(Color.appDestructive.opacity(0.12))
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+            }
+        }
+    }
+
+    private func portionRow(for person: Person) -> some View {
+        let portions = item.portionMap[person.personID] ?? 0
+        // For multi-qty: cost = price per unit × units. For single-item: proportional by weight.
+        let cost: Double = isMultiQty
+            ? item.price * Double(portions)
+            : (totalClaimed > 0 ? item.totalPrice * Double(portions) / Double(totalClaimed) : 0)
+
+        return HStack(spacing: 14) {
+            Circle()
+                .fill(Color(hex: person.color))
+                .frame(width: 38, height: 38)
+                .overlay(Text(person.emoji).font(.system(size: 18)))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(person.name)
+                    .foregroundStyle(portions > 0 ? .white : .textSecondary)
+                    .fontWeight(.medium)
+                if portions > 0 {
+                    Text(String(format: "$%.2f", cost))
+                        .font(.caption).foregroundStyle(.textSecondary)
+                }
+            }
+
+            Spacer()
+
+            // −  N  + stepper
+            HStack(spacing: 0) {
+                Button { decrementPortion(person) } label: {
+                    Image(systemName: "minus")
+                        .frame(width: 34, height: 34)
+                        .background(Color.elevatedCard)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .disabled(portions == 0)
+
+                Text("\(portions)")
+                    .frame(width: 34)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.white)
+                    .fontWeight(.semibold)
+
+                Button { incrementPortion(person) } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 34, height: 34)
+                        .background(Color.elevatedCard)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                // For multi-qty, cap at total units. For single items, no cap (it's a ratio weight).
+                .disabled(isMultiQty && totalClaimed >= item.quantity)
+            }
+            .foregroundStyle(.white)
+            .font(.system(size: 14, weight: .semibold))
+        }
+        .padding(14)
+        .background(portions > 0 ? Color(hex: person.color).opacity(0.15) : Color.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(portions > 0 ? Color(hex: person.color).opacity(0.5) : Color.clear, lineWidth: 1)
+        )
+        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: portions)
+    }
+
+    // MARK: Equal split mode (qty == 1) — simple toggles
+
+    private var equalSplitSection: some View {
+        VStack(spacing: 10) {
+            // Per-person cost info
+            if !item.assignedPeople.isEmpty {
+                let perPerson = item.totalPrice / Double(item.assignedPeople.count)
+                Text(String(format: "$%.2f each", perPerson))
+                    .font(.headline).foregroundStyle(.appAccent)
+                    .frame(maxWidth: .infinity).padding(12)
+                    .background(Color.appAccent.opacity(0.15))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            // Everyone button
+            if !splitPeople.isEmpty {
+                Button {
+                    item.assignedPeople = splitPeople
+                } label: {
+                    HStack {
+                        Image(systemName: "person.3.fill")
+                        Text("Everyone").fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity).padding(14)
+                    .background(Color.appAccent).foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+
+            // Per-person toggles
+            ForEach(splitPeople) { person in
+                let assigned = item.assignedPeople.contains { $0.persistentModelID == person.persistentModelID }
+                Button {
+                    if assigned {
+                        item.assignedPeople.removeAll { $0.persistentModelID == person.persistentModelID }
+                    } else {
+                        item.assignedPeople.append(person)
+                    }
+                } label: {
+                    HStack(spacing: 14) {
+                        Circle()
+                            .fill(Color(hex: person.color))
+                            .frame(width: 38, height: 38)
+                            .overlay(Text(person.emoji).font(.system(size: 18)))
+                        Text(person.name)
+                            .foregroundStyle(.white).fontWeight(.medium)
+                        Spacer()
+                        Image(systemName: assigned ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(assigned ? Color(hex: person.color) : .textSecondary)
+                            .font(.system(size: 22))
+                    }
+                    .padding(14)
+                    .background(assigned ? Color(hex: person.color).opacity(0.15) : Color.cardBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(assigned ? Color(hex: person.color).opacity(0.5) : .clear, lineWidth: 1)
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: Portion helpers
+
+    private func incrementPortion(_ person: Person) {
+        // For multi-qty items, cap at the number of units. Single items have no cap (ratio weights).
+        if isMultiQty { guard totalClaimed < item.quantity else { return } }
+        var map = item.portionMap
+        map[person.personID] = (map[person.personID] ?? 0) + 1
+        item.portionMap = map
+        // Auto-assign the person if not already in the list
+        if !item.assignedPeople.contains(where: { $0.personID == person.personID }) {
+            item.assignedPeople.append(person)
+        }
+    }
+
+    private func decrementPortion(_ person: Person) {
+        var map = item.portionMap
+        let current = map[person.personID] ?? 0
+        if current <= 1 {
+            map.removeValue(forKey: person.personID)
+            item.assignedPeople.removeAll { $0.personID == person.personID }
+        } else {
+            map[person.personID] = current - 1
+        }
+        item.portionMap = map
     }
 }
 
